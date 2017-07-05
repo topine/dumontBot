@@ -79,6 +79,7 @@ public class OauthHandler implements RequestHandler<Map<String, String>, String>
 
         Item item = new Item()
                 .withPrimaryKey("team_id", responseMap.get("team_id"))
+                .withString("team_name", (String)responseMap.get("team_name"))
                 .withString("bot_user_id", bot.get("bot_user_id"))
                 .withString("bot_access_token",  bot.get("bot_access_token"));
 
