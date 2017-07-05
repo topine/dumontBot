@@ -5,18 +5,49 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>eu.topine</groupId>
-    <artifactId>flightStatusChatbot</artifactId>
+    <artifactId>dumontBot</artifactId>
     <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <modules>
-        <module>ProcessMessage</module>
-        <module>FlightStatusFulfillment</module>
-        <module>SlackEventHandler</module>
-        <module>FlightAlertCallback</module>
-        <module>SubscriptionValidation</module>
-        <module>SubscriptionFulfillment</module>
+        <module>processMessage</module>
+        <module>flightStatusFulfillment</module>
+        <module>slackEventHandler</module>
+        <module>flightAlertCallback</module>
+        <module>subscriptionValidation</module>
+        <module>subscriptionFulfillment</module>
         <module>oauthHandler</module>
         <module>greetings</module>
+        <module>deployAws</module>
     </modules>
+
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>2.3</version>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
