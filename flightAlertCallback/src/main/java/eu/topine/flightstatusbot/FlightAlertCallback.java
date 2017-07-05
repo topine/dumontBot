@@ -1,7 +1,5 @@
 package eu.topine.flightstatusbot;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -10,7 +8,6 @@ import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mashape.unirest.http.Unirest;
@@ -115,7 +112,8 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
                 String statusDelayed = "(On-time) ";
 
-                if (null != delays.get("departureGateDelayMinutes")
+                if (null != delays
+                        && null != delays.get("departureGateDelayMinutes")
                         && (Integer.parseInt((String)delays.get("departureGateDelayMinutes")) >= 15)) {
                     statusDelayed = "(Delayed *" + delays.get("departureGateDelayMinutes") + " Minutes*)";
                 }
@@ -136,7 +134,8 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
                 String arrStatusDelayed = "(On-time) ";
 
-                if (null != delays.get("arrivalGateDelayMinutes")
+                if (null != delays
+                        && null != delays.get("arrivalGateDelayMinutes")
                         && (Integer.parseInt((String)delays.get("arrivalGateDelayMinutes")) >= 15)) {
                     arrStatusDelayed = "(Delayed *" + delays.get("arrivalGateDelayMinutes") + " Minutes*)\n";
                 }
