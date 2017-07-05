@@ -44,6 +44,8 @@ Lots of tests and refactoring needed for a production release.
 
 ## Architecture
 
+![DumontBot](DumontBot.png)
+
 ### Project
 
 One maven module per Lambda to avoid heavy jars (that increase the cold start).
