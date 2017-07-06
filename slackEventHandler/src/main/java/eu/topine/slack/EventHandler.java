@@ -45,9 +45,9 @@ public class EventHandler implements RequestHandler<Map<String, Object>, String>
 
             Map<String, String> processMessageRequest = new HashMap<>();
 
-            String textInput = event.get("text");
+            String textInput = " "+event.get("text");
 
-            Pattern flightNumberPattern = Pattern.compile("(.*)\\s(([A-Za-z]{2}|[A-Za-z]\\d|\\d[A-Za-z])\\d{3,4})(.*)");
+            Pattern flightNumberPattern = Pattern.compile("(.*)\\s(([A-Za-z]{2}|[A-Za-z]\\d|\\d[A-Za-z])\\d{1,4})(.*)");
             Matcher matcher = flightNumberPattern.matcher(textInput);
 
             if (matcher.matches()) {
@@ -59,7 +59,7 @@ public class EventHandler implements RequestHandler<Map<String, Object>, String>
             }
 
             processMessageRequest.put("clientId", event.get("user"));
-            processMessageRequest.put("textInput", textInput);
+            processMessageRequest.put("textInput", textInput.toUpperCase().trim());
             processMessageRequest.put("channel", event.get("channel"));
             processMessageRequest.put("team_id", (String)requestMap.get("team_id"));
 
@@ -71,7 +71,7 @@ public class EventHandler implements RequestHandler<Map<String, Object>, String>
             //Call an async service to not block the slack hook ( cold start also).
             try {
                 Unirest.setTimeouts(100, 1000);
-                Unirest.post("https://bk7xv2trg7.execute-api.us-east-1.amazonaws.com/prod/processmessage").body(gson.toJson(processMessageRequest)).asJson();
+                Unirest.post(System.getenv("PROCESS_MESSAGE_URL")).body(gson.toJson(processMessageRequest)).asJson();
             } catch (Exception e) {
                 logger.error("Error with processMessage post : ", e);
             }
