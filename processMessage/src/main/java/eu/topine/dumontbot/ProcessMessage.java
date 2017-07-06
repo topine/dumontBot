@@ -1,10 +1,11 @@
-package eu.topine.flightstatusbot;
+package eu.topine.dumontbot;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
+import com.amazonaws.services.dynamodbv2.document.PrimaryKey;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -25,20 +26,21 @@ import java.util.Map;
  */
 public class ProcessMessage implements RequestHandler<Map<String, String>, String> {
 
-    public static final String CLIENT_ID = "clientId";
-    public static final String TEXT_INPUT = "textInput";
-    public static final String TEST_SESSION = "testSession";
-    public static final String FLIGIHT_STATUS = "FligihtStatus";
-    public static final String PREVIOUS_STATUS = "previousStatus";
-    public static final String CHANNEL = "channel";
-    public static final String TEXT = "text";
-    public static final String TOKEN = "token";
-    public static final String FULFILLED = "Fulfilled";
-    public static final String FLIGHT_STATUS = "FlightStatus";
-    public static final String ID = "id";
-    public static final String SLACK_DATA = "slackData";
-    public static final String SLACK_TOKEN = "SLACK_TOKEN";
-    public static final String TEAM_ID = "team_id";
+    private static final String CLIENT_ID = "clientId";
+    private static final String TEXT_INPUT = "textInput";
+    private static final String TEST_SESSION = "testSession";
+    private static final String FLIGIHT_STATUS = "FligihtStatus";
+    private static final String PREVIOUS_STATUS = "previousStatus";
+    private static final String CHANNEL = "channel";
+    private static final String TEXT = "text";
+    private static final String TOKEN = "token";
+    private static final String FULFILLED = "Fulfilled";
+    private static final String FAILED = "Failed";
+    private static final String FLIGHT_STATUS = "FlightStatus";
+    private static final String ID = "id";
+    private static final String SLACK_DATA = "slackData";
+    private static final String TEAM_ID = "team_id";
+
 
     public Logger logger = Logger.getLogger(ProcessMessage.class);
 
@@ -122,6 +124,14 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
 
                 table.putItem(item);
             }
+
+            // remove from db if not the intent to subscribe for a previous status search.
+            if (FAILED.equals(postTextResult.getDialogState())
+                    && "Subscription".equalsIgnoreCase(postTextResult.getIntentName())) {
+
+                table.deleteItem(new PrimaryKey(ID, requestMap.get(CLIENT_ID)));
+            }
+
 
 
             Map<String, Object> bodyMap = new HashMap<>();
