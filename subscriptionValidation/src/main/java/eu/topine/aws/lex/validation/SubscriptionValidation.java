@@ -25,7 +25,7 @@ public class SubscriptionValidation implements RequestHandler<Map<String, Object
 
         logger.debug("request : " + objGson.toJson(requestMap));
 
-        Map<String, Object> response = buildEmptyResponse();
+        Map<String, Object> response = buildResponse(requestMap);
 
 
         try {
@@ -43,10 +43,10 @@ public class SubscriptionValidation implements RequestHandler<Map<String, Object
                 Map<String, Object> previousStatus = objGson
                         .fromJson(previousStatusString, Map.class);
 
-                response =  this.buildResponse(previousStatus);
+                response = this.buildResponsePreviousStatus(previousStatus);
             }
 
-        } catch(Exception e) {
+        } catch (Exception e) {
             logger.error("Error : ", e);
         } finally {
             logger.debug("response to lex : " + objGson.toJson(response));
@@ -57,19 +57,19 @@ public class SubscriptionValidation implements RequestHandler<Map<String, Object
 
     /**
      * "dialogAction":{
-     *   "type":"Delegate",
-     *   "slots":{
-     *           "RoomType":null,
-     *           "CheckInDate":null,
-     *           "Nights":null,
-     *           "Location":null
-     *          }
-     *  }
+     * "type":"Delegate",
+     * "slots":{
+     * "RoomType":null,
+     * "CheckInDate":null,
+     * "Nights":null,
+     * "Location":null
+     * }
+     * }
      *
      * @param previousStatus
      * @return
      */
-    private Map<String, Object> buildResponse(Map<String, Object> previousStatus) {
+    private Map<String, Object> buildResponsePreviousStatus(Map<String, Object> previousStatus) {
         Map<String, Object> response = new HashMap<>();
 
         Map<String, Object> dialogAction = new HashMap<>();
@@ -90,19 +90,29 @@ public class SubscriptionValidation implements RequestHandler<Map<String, Object
         return response;
     }
 
-    private Map<String, Object> buildEmptyResponse() {
+    private Map<String, Object> buildResponse(Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
 
         Map<String, Object> dialogAction = new HashMap<>();
 
         dialogAction.put("type", "Delegate");
 
-        Map<String, Object> slots = new HashMap<>();
 
-        slots.put("airlineCode", null);
-        slots.put("flightNumber", null);
-        slots.put("flightDate", null);
-        slots.put("departureAirport", null);
+        Map<String, Object> currentIntent = (Map<String, Object>) request.get("currentIntent");
+
+        Map<String, Object> slots;
+
+        // if the user does not want the confirmation ( previous ) we loop.
+        if ("Denied".equalsIgnoreCase((String) currentIntent.get("confirmationStatus"))) {
+            slots = new HashMap<>();
+
+            slots.put("airlineCode", null);
+            slots.put("flightNumber", null);
+            slots.put("flightDate", null);
+            slots.put("departureAirport", null);
+        } else {
+            slots = (Map) currentIntent.get("slots");
+        }
 
         dialogAction.put("slots", slots);
 
