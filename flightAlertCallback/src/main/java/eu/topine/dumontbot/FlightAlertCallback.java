@@ -1,4 +1,4 @@
-package eu.topine.flightstatusbot;
+package eu.topine.dumontbot;
 
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -26,7 +27,7 @@ import java.util.Map;
 public class FlightAlertCallback implements RequestHandler<Map<String, Object>, String> {
 
     private Logger logger = Logger.getLogger(FlightAlertCallback.class);
-    private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm a");
+    private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("MMMM dd, yyyy hh:mm a", Locale.US);
 
     public String handleRequest(Map<String, Object> requestMap, Context context) {
 
@@ -35,7 +36,7 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
             Gson gson = new GsonBuilder().create();
 
-            logger.debug("Request :" + gson.toJson(requestMap));
+            logger.info("Request :" + gson.toJson(requestMap));
 
             AmazonDynamoDB client = AmazonDynamoDBClientBuilder.standard()
                     .withRegion(Regions.US_EAST_1)
@@ -53,6 +54,7 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
             String id = (String) ((Map) ((Map) rule.get("nameValues")).get("nameValue")).get("value");
 
+            logger.info("get slack dynamodb id:" + id);
             Item item = table.getItem("id", id);
 
             Map<String, String> request = item.getMap("request");
@@ -65,6 +67,8 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
             //get token to reply
             Table botTokenTable = dynamoDB.getTable("botToken");
 
+            logger.info("get botitem dynamodb id:" + slackData.get("team_id"));
+
             Item botItem = botTokenTable.getItem("team_id", slackData.get("team_id"));
 
             String botAccessToken = botItem.getString("bot_access_token");
@@ -74,6 +78,8 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
             bodyMap.put("channel", slackData.get("channel"));
 
             bodyMap.put("text", mapText(alertType,flightStatus,slackData));
+
+            logger.info("Slack post message : " + gson.toJson(bodyMap));
 
             Unirest.post("https://slack.com/api/chat.postMessage")
                     .header("Content-Type", "application/json")
@@ -137,7 +143,7 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
                 if (null != delays
                         && null != delays.get("arrivalGateDelayMinutes")
                         && (Integer.parseInt((String)delays.get("arrivalGateDelayMinutes")) >= 15)) {
-                    arrStatusDelayed = "(Delayed *" + delays.get("arrivalGateDelayMinutes") + " Minutes*)\n";
+                    arrStatusDelayed = "(Delayed *" + delays.get("arrivalGateDelayMinutes") + " Minutes*)";
                 }
 
                 builder.append(arrStatusDelayed).append(" at : *")

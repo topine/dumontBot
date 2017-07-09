@@ -27,8 +27,8 @@ public class EventHandler implements RequestHandler<Map<String, Object>, String>
 
         Gson gson = gsonBuilder.create();
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("request: " + gson.toJson(requestMap));
+        if (logger.isInfoEnabled()) {
+            logger.info("request: " + gson.toJson(requestMap));
         }
 
         if ("url_verification".equals(requestMap.get("type"))) {
@@ -59,13 +59,13 @@ public class EventHandler implements RequestHandler<Map<String, Object>, String>
             }
 
             processMessageRequest.put("clientId", event.get("user"));
-            processMessageRequest.put("textInput", textInput.toUpperCase().trim());
+            processMessageRequest.put("textInput", textInput.replace("!","").toUpperCase().trim());
             processMessageRequest.put("channel", event.get("channel"));
             processMessageRequest.put("team_id", (String)requestMap.get("team_id"));
 
 
-            if (logger.isDebugEnabled()) {
-                logger.debug("ProcessMessageRequest :  " + gson.toJson(processMessageRequest));
+            if (logger.isInfoEnabled()) {
+                logger.info("ProcessMessageRequest :  " + gson.toJson(processMessageRequest));
             }
 
             //Call an async service to not block the slack hook ( cold start also).

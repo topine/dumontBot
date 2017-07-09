@@ -1,4 +1,4 @@
-package eu.topine.flightstatusbot;
+package eu.topine.dumontbot;
 
 /**
  * Created by topine on 15/05/2017.

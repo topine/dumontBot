@@ -18,7 +18,10 @@ import com.google.gson.GsonBuilder;
 import com.mashape.unirest.http.Unirest;
 import org.apache.log4j.Logger;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -42,7 +45,8 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
     private static final String TEAM_ID = "team_id";
 
 
-    public Logger logger = Logger.getLogger(ProcessMessage.class);
+    private Logger logger = Logger.getLogger(ProcessMessage.class);
+    private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("MMMM dd, yyyy", Locale.US);
 
     public String handleRequest(Map<String, String> requestMap, Context context) {
 
@@ -53,8 +57,8 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
             Gson gson = gsonBuilder.create();
 
             //need to check if debug enabled to avoid
-            if (logger.isDebugEnabled()) {
-                logger.debug("Request : " + gson.toJson(requestMap));
+            if (logger.isInfoEnabled()) {
+                logger.info("Request : " + gson.toJson(requestMap));
             }
 
 
@@ -110,8 +114,15 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
             }
 
             request.setSessionAttributes(sessionAttributes);
+
+            if (logger.isInfoEnabled()) {
+                logger.info("Lex request: " + gson.toJson(request));
+            }
             PostTextResult postTextResult = amazonLexRuntimeClient.postText(request);
 
+            if (logger.isInfoEnabled()) {
+                logger.info("Lex response: " + gson.toJson(postTextResult));
+            }
 
             if (FULFILLED.equals(postTextResult.getDialogState())
                     && FLIGHT_STATUS.equalsIgnoreCase(postTextResult.getIntentName())
@@ -134,11 +145,29 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
 
 
 
+            String outputText = postTextResult.getMessage();
+            //format the output date of the confirmation dialog.
+            if ("ConfirmIntent".equalsIgnoreCase(postTextResult.getDialogState()) &&
+                    (FLIGHT_STATUS.equalsIgnoreCase(postTextResult.getIntentName())
+                    || "Subscription".equalsIgnoreCase(postTextResult.getIntentName())) ) {
+
+                String unformattedDate = outputText.substring(outputText.length()-11,
+                        outputText.length()-1);
+
+                outputText = outputText.replace(unformattedDate,
+                        LocalDate.parse(unformattedDate).format(dateTimeOutputFormat));
+            }
+
+
             Map<String, Object> bodyMap = new HashMap<>();
 
             bodyMap.put(TOKEN,  botAccessToken);
             bodyMap.put(CHANNEL,requestMap.get(CHANNEL));
-            bodyMap.put(TEXT, postTextResult.getMessage());
+            bodyMap.put(TEXT, outputText);
+
+            if (logger.isInfoEnabled()) {
+                logger.info("Slack request : " + gson.toJson(bodyMap));
+            }
 
             Unirest.post("https://slack.com/api/chat.postMessage")
                     .header("Content-Type", "application/json")

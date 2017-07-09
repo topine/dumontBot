@@ -16,25 +16,26 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
  * Fulfillment action for the flight status
  */
-
+@SuppressWarnings("unchecked")
 public class FlightStatusFulfillment implements RequestHandler<Map<String, Object>, Map<String, Object>> {
 
 
     private Logger logger = Logger.getLogger(FlightStatusFulfillment.class);
 
-    private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm a");
+    private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("MMMM dd, yyyy hh:mm a", Locale.US);
 
-    @SuppressWarnings("unchecked")
     public Map<String, Object> handleRequest(Map<String, Object> requestMap, Context context) {
 
         Gson objGson = new GsonBuilder().create();
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response;
 
+        logger.info("Request : " + objGson.toJson(requestMap));
 
 
         try {
@@ -92,12 +93,15 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
             if (null != flightStatuses
                     && !flightStatuses.isEmpty()) {
 
+                logger.info("Flight stats response : " + objGson.toJson(flightStatuses));
+
                 Map<String, Object> flightStatus = flightStatuses.get(0);
 
                 response = buildResponseWithText(flightStatus,sessionAttributes);
 
 
             } else {
+                logger.error("Flight not found");
                 response = getResponse("Sorry, we are not able to find the status of your flight.", new HashMap<>());
             }
 
@@ -105,6 +109,9 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
             logger.error("Error with flight status fulfillment : ", e);
             response = getResponse("Sorry, we are not able to find the status of your flight.", new HashMap<>());
         }
+
+
+        logger.info("Fulfillment response : " + response);
 
         return response;
     }
