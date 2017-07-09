@@ -15,7 +15,8 @@ DumontBot shows the flight status and can notify you with live updates about :
 Flight status services are provided by third party provider.
 
 ## Demonstration Video
-TODO
+
+https://youtu.be/EprZ-IzK1rA
 
 ## Add DumontBot to Your Slack Team
 
@@ -37,8 +38,6 @@ This is a prototype to find an alternative to wit.ai and experiment the followin
 Implementation in Java using "normal libraries" to evaluate the lambda running time (including cold start time).
 
 Lots of tests and refactoring needed for a production release.
-
-
 
 
 
