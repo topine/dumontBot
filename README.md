@@ -72,7 +72,10 @@ Configure your local environment with the necessary AWS credentials.
  
 You may need to change some code paths.
 
-TODO
+The deployment tool development is on-going.
+
+Please look the document for manual install of AWS products:
+[aws deploy doc](AWS-DEPLOY.md)
 
 
 Enjoy
