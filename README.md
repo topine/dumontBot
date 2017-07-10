@@ -74,8 +74,10 @@ You may need to change some code paths.
 
 The deployment tool development is on-going.
 
-Please look the document for manual install of AWS products:
+Please look the document for manual install and configuration of AWS LEX intents :
 [aws deploy doc](AWS-DEPLOY.md)
 
+For the LEX JSON export :
+[LEX JSON](deployAws/src/main/resources/lex-bot-export.json)
 
 Enjoy
