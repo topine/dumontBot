@@ -37,6 +37,8 @@ public class GeneralGreetings implements RequestHandler<Map<String, Object>, Map
                 int randomGreeting = new Random().nextInt(greeting.length);
                 text = greeting[randomGreeting] + status;
                 break;
+
+            case "WhatCanYouDo":
             case "Help":
                 text = "Do you want to verify a flight status and get live updates alerts in Slack ? \n" +
                         "\n" +
