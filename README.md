@@ -62,8 +62,11 @@ One maven module per Lambda to avoid heavy jars (that increase the cold start).
 ### AWS Lex Intents
 * __FlightStatus__ : Initial intent that retrieve the flight status and save in the dynamoDB the necessary information to start the second intent (AlertSubscription).
 * __Subscription__ : Intent to subscribe for flight alerts. Uses the previous flight status retrieved to build the request, otherwise will ask the user for the inputs.
-* __Help__: TODO
-* __Greetings__: TODO
+* __Help__: Help intent
+* __Greetings__: Greeting intent
+* __HowAreYou__: How are you intent
+* __WhoAreYou__: Who are you intent
+* __ThankYou__: Thank you intent
 
 
 ## AWS Deploy
@@ -80,4 +83,4 @@ Please look the document for manual install and configuration of AWS LEX intents
 For the LEX JSON export :
 [LEX JSON](deployAws/src/main/resources/lex-bot-export.json)
 
-Enjoy
+Thank you
