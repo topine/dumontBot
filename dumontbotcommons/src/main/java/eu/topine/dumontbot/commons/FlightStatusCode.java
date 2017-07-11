@@ -1,4 +1,4 @@
-package eu.topine.dumontbot;
+package eu.topine.dumontbot.commons;
 
 /**
  * Created by topine on 15/05/2017.

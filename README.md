@@ -16,7 +16,7 @@ Flight status services are provided by third party provider.
 
 ## Demonstration Video
 
-https://youtu.be/EprZ-IzK1rA
+https://youtu.be/6r8en5jwksw
 
 ## Add DumontBot to Your Slack Team
 
