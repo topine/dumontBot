@@ -11,10 +11,13 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mashape.unirest.http.Unirest;
+import eu.topine.dumontbot.commons.FlightStatusCode;
+import eu.topine.dumontbot.commons.SlackAttachment;
 import org.apache.log4j.Logger;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -28,13 +31,13 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
     private Logger logger = Logger.getLogger(FlightAlertCallback.class);
     private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("MMMM dd, yyyy hh:mm a", Locale.US);
+    private Gson gson = new GsonBuilder().create();
 
     public String handleRequest(Map<String, Object> requestMap, Context context) {
 
 
         try {
 
-            Gson gson = new GsonBuilder().create();
 
             logger.info("Request :" + gson.toJson(requestMap));
 
@@ -77,7 +80,7 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
             bodyMap.put("token", botAccessToken);
             bodyMap.put("channel", slackData.get("channel"));
 
-            bodyMap.put("text", mapText(alertType,flightStatus,slackData));
+            bodyMap.put("attachments", mapText(alertType, flightStatus, slackData));
 
             logger.info("Slack post message : " + gson.toJson(bodyMap));
 
@@ -98,8 +101,13 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
 
         FlightStatusCode flightStatusCode = FlightStatusCode.findByShortCode((String) flightStatus.get("status"));
         Map<String, Object> delays = (Map) flightStatus.get("delays");
-        Map<String, String> airportResource = (Map)flightStatus.get("airportResources");
+        Map<String, String> airportResource = (Map) flightStatus.get("airportResources");
 
+
+        SlackAttachment alertAttachment = new SlackAttachment();
+
+        alertAttachment.getMrkdwnIn().add("text");
+        alertAttachment.getMrkdwnIn().add("pretext");
 
         StringBuilder builder = new StringBuilder();
         builder.append("Hello <@").append(slackData.get("clientId")).append(">\n");
@@ -108,100 +116,141 @@ public class FlightAlertCallback implements RequestHandler<Map<String, Object>, 
                 .append(flightStatus.get("carrierFsCode"))
                 .append(" ").append(flightStatus.get("flightNumber")).append("* \n");
 
-        builder.append("Flight status : *").append(flightStatusCode.getLabel()).append("*\n");
+        alertAttachment.setPretext(builder.toString());
+
+        alertAttachment.addField("", "", false);
+
+        alertAttachment.addField("Flight status", flightStatusCode.getLabel(), false);
+
+        alertAttachment.addField("", "", false);
 
         switch (alertType) {
             case "EN_ROUTE":
 
+                alertAttachment.setText("*Flight Departure Alert*");
+                alertAttachment.setColor("#1874CD");
+                StringBuilder builderEnRoute = new StringBuilder();
                 //Departed (On-Time)|(Delayed 15 Minutes) at : date
-                builder.append("Departed ");
+                builderEnRoute.append("Departed ");
 
                 String statusDelayed = "(On-time) ";
 
                 if (null != delays
                         && null != delays.get("departureGateDelayMinutes")
-                        && (Integer.parseInt((String)delays.get("departureGateDelayMinutes")) >= 15)) {
-                    statusDelayed = "(Delayed *" + delays.get("departureGateDelayMinutes") + " Minutes*)";
+                        && (Integer.parseInt((String) delays.get("departureGateDelayMinutes")) >= 15)) {
+                    statusDelayed = "(Delayed " + delays.get("departureGateDelayMinutes") + " Minutes)";
                 }
 
-                builder.append(statusDelayed).append(" at : *")
-                        .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                                .get("actualGateDeparture").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                builderEnRoute.append(statusDelayed).append(" at");
 
-                builder.append("*Estimated Arrival Time : ")
-                        .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                                .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                alertAttachment.addField(builderEnRoute.toString(),
+                        LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                                .get("actualGateDeparture").get("dateLocal")).format(dateTimeOutputFormat), false);
+
+
+                alertAttachment.addField("Estimated Arrival Time",
+                        LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                                .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat), false);
+
                 break;
 
             case "LANDED":
 
-                //Arrived (On-Time)|(Delayed 15 Minutes) at : date
-                builder.append("Arrived ");
+                alertAttachment.setText("*Flight Arrival Alert*");
+                alertAttachment.setColor("#008B00");
+                StringBuilder builderLanded = new StringBuilder();
+
+                builderLanded.append("Arrived ");
 
                 String arrStatusDelayed = "(On-time) ";
 
                 if (null != delays
                         && null != delays.get("arrivalGateDelayMinutes")
-                        && (Integer.parseInt((String)delays.get("arrivalGateDelayMinutes")) >= 15)) {
-                    arrStatusDelayed = "(Delayed *" + delays.get("arrivalGateDelayMinutes") + " Minutes*)";
+                        && (Integer.parseInt((String) delays.get("arrivalGateDelayMinutes")) >= 15)) {
+                    arrStatusDelayed = "(Delayed " + delays.get("arrivalGateDelayMinutes") + " Minutes)";
                 }
 
-                builder.append(arrStatusDelayed).append(" at : *")
-                        .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                                .get("actualRunwayArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                builderLanded.append(arrStatusDelayed).append(" at");
+
+                alertAttachment.addField(builderLanded.toString(),
+                        LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                                .get("actualRunwayArrival").get("dateLocal")).format(dateTimeOutputFormat), false);
+
                 break;
 
             case "CANCELLED":
             case "DIVERTED":
-                builder.append("For more information please contact the Airline. \n");
+                alertAttachment.setText("*Flight Cancellation Alert*");
+                alertAttachment.setColor("danger");
+                alertAttachment.addField("", "", false);
+                alertAttachment.addField("For more information please contact the Airline.", "", false);
                 break;
 
             case "DEPARTURE_DELAY":
+                alertAttachment.setColor("#FFFF00");
+                alertAttachment.setText("*Flight Departure Delay Alert*");
+                StringBuilder builderDepDelay = new StringBuilder();
                 //The flight departure is delayed 15 minutes
-                builder.append("The flight departure is delayed *")
+                builderDepDelay.append("The flight departure is delayed ")
                         .append(delays.get("departureGateDelayMinutes"))
-                        .append(" Minutes*\n");
+                        .append(" Minutes\n");
 
-                builder.append("*New Estimated Departure Time : ")
-                        .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                                .get("estimatedGateDeparture").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                alertAttachment.addField(builderDepDelay.toString(), "", false);
+
+                alertAttachment.addField("New Estimated Departure Time",
+                        LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                                .get("estimatedGateDeparture").get("dateLocal")).format(dateTimeOutputFormat), false);
+
                 break;
 
             case "ARRIVAL_DELAY":
-                //The flight arrival is delayed 15 minutes
-                //The flight departure is delayed 15 minutes
-                builder.append("The flight arrival is delayed *")
-                        .append(delays.get("arrivalGateDelayMinutes"))
-                        .append(" Minutes*\n");
 
-                builder.append("*New Estimated Arrival Time : ")
-                        .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                                .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                alertAttachment.setColor("#FFFF00");
+                alertAttachment.setText("*Flight Arrival Delay Alert*");
+
+                StringBuilder builderArrDelay = new StringBuilder();
+                //The flight arrival is delayed 15 minutes
+                builderArrDelay.append("The flight arrival is delayed ")
+                        .append(delays.get("arrivalGateDelayMinutes"))
+                        .append(" Minutes\n");
+
+                alertAttachment.addField(builderArrDelay.toString(), "", false);
+
+                alertAttachment.addField("New Estimated Arrival Time",
+                        LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                                .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat), false);
+
                 break;
 
             case "BAGGAGE":
-                // The bagage will be available in the 5;
-                builder.append("The baggage will be available in the baggage carousel *")
-                .append(airportResource.get("baggage")).append("*");
+                alertAttachment.setColor("#FFFF00");
+                alertAttachment.setText("*Baggage Alert*");
+
+                alertAttachment.addField("The baggage will be available on the baggage carousel", airportResource.get("baggage"), false);
+
                 break;
 
             case "DEPARTURE_GATE":
-                // The flight will departure from terminal 1, gate 55;
-                if (null != airportResource && null != airportResource.get("departureGate")) {
-                    builder.append("New Departure Gate : *")
-                            .append(airportResource.get("departureGate")).append("*\n");
-                }
+                alertAttachment.setColor("#228B22");
+                alertAttachment.setText("*Gate Change Alert*");
 
                 if (null != airportResource && null != airportResource.get("departureTerminal")) {
-                    builder.append("Terminal : *")
-                            .append(airportResource.get("departureTerminal")).append("*\n");
+                    alertAttachment.addField("Terminal", airportResource.get("departureTerminal"), true);
+
+                }
+
+                // The flight will departure from terminal 1, gate 55;
+                if (null != airportResource && null != airportResource.get("departureGate")) {
+
+                    alertAttachment.addField("New Departure Gate",
+                            airportResource.get("departureGate"), true);
+
                 }
 
                 break;
         }
 
-
-        return builder.toString();
+        return gson.toJson(Collections.singletonList(alertAttachment));
 
     }
 }

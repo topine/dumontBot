@@ -8,12 +8,15 @@ import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import eu.topine.dumontbot.commons.FlightStatusCode;
+import eu.topine.dumontbot.commons.SlackAttachment;
 import org.apache.log4j.Logger;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -30,9 +33,11 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
     private DateTimeFormatter dateTimeOutputFormat = DateTimeFormatter.ofPattern("MMMM dd, yyyy hh:mm a", Locale.US);
 
+    private Gson objGson = new GsonBuilder().create();
+
     public Map<String, Object> handleRequest(Map<String, Object> requestMap, Context context) {
 
-        Gson objGson = new GsonBuilder().create();
+
         Map<String, Object> response;
 
         logger.info("Request : " + objGson.toJson(requestMap));
@@ -76,6 +81,8 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
             Map<String, Object> responseMap = objGson.fromJson(jsonResponse.getBody().toString(), Map.class);
 
+            logger.info("Flight stats response dep: " + objGson.toJson(jsonResponse));
+
             List<Map<String, Object>> flightStatuses = (ArrayList) responseMap.get("flightStatuses");
 
             if (null == flightStatuses
@@ -83,6 +90,8 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
                 jsonResponse = getFlightStatus(params, airlineCode, flightNumber,
                         year, month, day, false);
+
+                logger.info("Flight stats response arr: " + objGson.toJson(jsonResponse));
 
                 responseMap = objGson.fromJson(jsonResponse.getBody().toString(), Map.class);
 
@@ -97,17 +106,18 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
                 Map<String, Object> flightStatus = flightStatuses.get(0);
 
-                response = buildResponseWithText(flightStatus,sessionAttributes);
+                response = buildResponseWithText(flightStatus, sessionAttributes);
 
 
             } else {
+
                 logger.error("Flight not found");
-                response = getResponse("Sorry, we are not able to find the status of your flight.", new HashMap<>());
+                response = getResponseError();
             }
 
         } catch (Exception e) {
             logger.error("Error with flight status fulfillment : ", e);
-            response = getResponse("Sorry, we are not able to find the status of your flight.", new HashMap<>());
+            response = getResponseError();
         }
 
 
@@ -129,6 +139,17 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
                 .routeParam("month", month)
                 .routeParam("day", day)
                 .routeParam("depOrArr", depOrArr).queryString(params).asJson();
+    }
+
+
+    private Map<String, Object> getResponseError() {
+
+        SlackAttachment errorAttachment = new SlackAttachment();
+        errorAttachment.setText("Sorry, we are not able to find the status of your flight.");
+        errorAttachment.setColor("danger");
+        //errorAttachment.addField("","",false);
+
+        return getResponse(objGson.toJson(Collections.singletonList(errorAttachment)), new HashMap<>());
     }
 
 
@@ -163,11 +184,15 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
         FlightStatusCode flightStatusCode = FlightStatusCode.findByShortCode((String) flightStatus.get("status"));
 
-        String departureAirport = (String)flightStatus.get("departureAirportFsCode");
+        String departureAirport = (String) flightStatus.get("departureAirportFsCode");
         String arrivalAirport = (String) flightStatus.get("arrivalAirportFsCode");
 
-        sessionAttributes.put("departureAirport", departureAirport );
+        sessionAttributes.put("departureAirport", departureAirport);
         sessionAttributes.put("arrivalAirport", arrivalAirport);
+
+        SlackAttachment statusAttachment = new SlackAttachment();
+        statusAttachment.setColor("good");
+        statusAttachment.getMrkdwnIn().add("text");
 
         StringBuilder text = new StringBuilder();
         // Flight AA 1234
@@ -183,7 +208,7 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
                 .append("* ");
 
 
-        Map<String, Object> delays = (Map)flightStatus.get("delays");
+        Map<String, Object> delays = (Map) flightStatus.get("delays");
 
         String statusDelayed = "(On-time)\n";
 
@@ -191,91 +216,98 @@ public class FlightStatusFulfillment implements RequestHandler<Map<String, Objec
 
             if (FlightStatusCode.SCHEDULED.equals(flightStatusCode)
                     && null != delays.get("departureGateDelayMinutes")
-                    && ((Double)delays.get("departureGateDelayMinutes")).intValue() >= 15) {
-                statusDelayed = "(Delayed *" + ((Double)delays.get("departureGateDelayMinutes")).intValue() + " Minutes*)\n";
+                    && ((Double) delays.get("departureGateDelayMinutes")).intValue() >= 15) {
+                statusDelayed = "(Delayed *" + ((Double) delays.get("departureGateDelayMinutes")).intValue() + " Minutes*)\n";
             }
 
-            if ((FlightStatusCode.EN_ROUTE.equals(flightStatusCode) || FlightStatusCode.LANDED.equals(flightStatusCode) )
+            if ((FlightStatusCode.EN_ROUTE.equals(flightStatusCode) || FlightStatusCode.LANDED.equals(flightStatusCode))
                     && null != delays.get("arrivalGateDelayMinutes")
-                    && ((Double)delays.get("arrivalGateDelayMinutes")).intValue() >= 15) {
-                statusDelayed = "(Delayed *" + ((Double)delays.get("arrivalGateDelayMinutes")).intValue() + " Minutes*)\n";
+                    && ((Double) delays.get("arrivalGateDelayMinutes")).intValue() >= 15) {
+                statusDelayed = "(Delayed *" + ((Double) delays.get("arrivalGateDelayMinutes")).intValue() + " Minutes*)\n";
             }
         }
 
 
         text.append(statusDelayed);
 
-        text.append("\n\n*Departure*\n\n");
+        statusAttachment.setText(text.toString());
 
-        Map<String, String> airportResource = (Map)flightStatus.get("airportResources");
+        statusAttachment.addField("", "", false);
+        statusAttachment.addField("Departure", "", false);
+        statusAttachment.addField("", "", false);
+
+        Map<String, String> airportResource = (Map) flightStatus.get("airportResources");
 
         if (null != airportResource && null != airportResource.get("departureTerminal")) {
-            text.append("Departure Terminal : *")
-                    .append(airportResource.get("departureTerminal")).append("*\n");
+            statusAttachment.addField("Departure Terminal",
+                    airportResource.get("departureTerminal"), true);
         }
 
         if (null != airportResource && null != airportResource.get("departureGate")) {
-            text.append("Departure Gate : *")
-                    .append(airportResource.get("departureGate")).append("*\n");
+            statusAttachment.addField("Departure Gate",
+                    airportResource.get("departureGate"), true);
         }
+
+        //empty line
+        statusAttachment.addField("", "", false);
 
         if (null != ((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                .get("actualGateDeparture") ) {
-            text.append("*Departed at : ")
-                    .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                            .get("actualGateDeparture").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                .get("actualGateDeparture")) {
+            statusAttachment.addField("Departed at",
+                    LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                            .get("actualGateDeparture").get("dateLocal")).format(dateTimeOutputFormat), true);
 
         } else if (null != ((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                .get("estimatedGateDeparture") ) {
+                .get("estimatedGateDeparture")) {
 
-            text.append("*Estimated Departure Time : ")
-                    .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                            .get("estimatedGateDeparture").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+            statusAttachment.addField("Estimated Departure Time",
+                    LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                            .get("estimatedGateDeparture").get("dateLocal")).format(dateTimeOutputFormat), true);
         }
 
-        text.append("Scheduled Departure Time: ")
-                .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                        .get("scheduledGateDeparture").get("dateLocal")).format(dateTimeOutputFormat)).append("\n");
+        statusAttachment.addField("Scheduled Departure Time",
+                LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                        .get("scheduledGateDeparture").get("dateLocal")).format(dateTimeOutputFormat), true);
 
-        text.append("\n\n*Arrival*\n\n");
+
+        //empty line
+        statusAttachment.addField("", "", false);
+
+        statusAttachment.addField("Arrival", "", false);
+        statusAttachment.addField("", "", false);
 
         if (null != airportResource && null != airportResource.get("arrivalTerminal")) {
-            text.append("Arrival Terminal : *")
-                    .append(airportResource.get("arrivalTerminal")).append("*\n");
+            statusAttachment.addField("Arrival Terminal", airportResource.get("arrivalTerminal"), true);
         }
 
         if (null != airportResource && null != airportResource.get("arrivalGate")) {
-            text.append("Arrival Gate : *")
-                    .append(airportResource.get("arrivalGate")).append("*\n");
+            statusAttachment.addField("Arrival Gate", airportResource.get("arrivalGate"), true);
         }
+
+        statusAttachment.addField("", "", false);
 
 
         if (null != ((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                .get("actualGateArrival") ) {
-            text.append("*Arrived at : ")
-                    .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                            .get("actualGateArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                .get("actualGateArrival")) {
+            statusAttachment.addField("Arrived at", LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                    .get("actualGateArrival").get("dateLocal")).format(dateTimeOutputFormat), true);
 
         } else if (null != ((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                .get("estimatedGateArrival") ) {
-
-            text.append("*Estimated Arrival Time : ")
-                    .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                            .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("*\n");
+                .get("estimatedGateArrival")) {
+            statusAttachment.addField("Estimated Arrival Time", LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                    .get("estimatedGateArrival").get("dateLocal")).format(dateTimeOutputFormat), true);
         }
 
-        text.append("Scheduled Arrival Time: ")
-                .append(LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
-                        .get("scheduledGateArrival").get("dateLocal")).format(dateTimeOutputFormat)).append("\n");
+        statusAttachment.addField("Scheduled Arrival Time", LocalDateTime.parse(((Map<String, Map<String, String>>) flightStatus.get("operationalTimes"))
+                .get("scheduledGateArrival").get("dateLocal")).format(dateTimeOutputFormat), true);
+
+        statusAttachment.addField("", "", false);
+
+        statusAttachment.addField("Please let me know if you want to get live updates about this flight.", "", false);
 
 
-
-
-        text.append("\n Please let me know if you want to get live updates about this flight.");
-
-        return getResponse(text.toString(), sessionAttributes);
+        return getResponse(objGson.toJson(Collections.singletonList(statusAttachment)), sessionAttributes);
     }
-
 
 
 }

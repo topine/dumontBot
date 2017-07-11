@@ -21,6 +21,7 @@ import org.apache.log4j.Logger;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -163,7 +164,15 @@ public class ProcessMessage implements RequestHandler<Map<String, String>, Strin
 
             bodyMap.put(TOKEN,  botAccessToken);
             bodyMap.put(CHANNEL,requestMap.get(CHANNEL));
-            bodyMap.put(TEXT, outputText);
+
+            // use attachment and not output text
+            if (FULFILLED.equals(postTextResult.getDialogState())
+                    && FLIGHT_STATUS.equalsIgnoreCase(postTextResult.getIntentName())) {
+
+                bodyMap.put("attachments", outputText);
+            } else {
+                bodyMap.put(TEXT, outputText);
+            }
 
             if (logger.isInfoEnabled()) {
                 logger.info("Slack request : " + gson.toJson(bodyMap));

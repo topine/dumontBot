@@ -39,6 +39,12 @@
             <version>2.8.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>eu.topine</groupId>
+            <artifactId>dumontbot-commons</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
     </dependencies>
 
     <build>
