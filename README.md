@@ -80,7 +80,7 @@ The deployment tool development is on-going.
 Please look the document for manual install and configuration of AWS LEX intents :
 [aws deploy doc](AWS-DEPLOY.md)
 
-For the LEX JSON export :
+For the LEX bot export :
 [LEX JSON](deployAws/src/main/resources/lex-bot-export.json)
 
 Thank you
